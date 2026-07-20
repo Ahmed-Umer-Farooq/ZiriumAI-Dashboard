@@ -94,7 +94,11 @@ export function useInterns() {
       }
       const certificateCode = `ZIR-${currentYear}-${String(nextNumber).padStart(4, '0')}`
 
-      // 3. Generate PDF client-side
+      // 3. Build file name early so it's available for download
+      const safeName = intern.full_name.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
+      const filePath = `${safeName}-${certificateCode}.pdf`
+
+      // 4. Generate PDF client-side
       const pdfBlob = await generateCertificatePdf({
         internName: intern.full_name,
         role: intern.role,
@@ -104,26 +108,36 @@ export function useInterns() {
         verificationToken
       })
 
-      // 4. Upload PDF to Supabase Storage in 'certificates' bucket
-      const safeName = intern.full_name.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
-      const filePath = `${safeName}-${certificateCode}.pdf`
-      const { error: uploadError } = await supabase.storage
-        .from('certificates')
-        .upload(filePath, pdfBlob, {
-          contentType: 'application/pdf',
-          cacheControl: '3600',
-          upsert: true
-        })
+      // 5. Trigger immediate browser download
+      const downloadUrl = URL.createObjectURL(pdfBlob)
+      const anchor = document.createElement('a')
+      anchor.href = downloadUrl
+      anchor.download = filePath
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      URL.revokeObjectURL(downloadUrl)
 
-      if (uploadError) {
-        throw new Error(`Failed to upload certificate PDF: ${uploadError.message}`)
+      // 6. Try to upload to storage (optional — download already happened above)
+      let storedFilePath = ''
+      try {
+        const { error: uploadError } = await supabase.storage
+          .from('certificates')
+          .upload(filePath, pdfBlob, {
+            contentType: 'application/pdf',
+            cacheControl: '3600',
+            upsert: true
+          })
+        if (!uploadError) storedFilePath = filePath
+      } catch {
+        // Storage upload failed — PDF was already downloaded, cert record still saves
       }
 
-      // 5. Get issuing admin credentials
+      // 7. Get issuing admin credentials
       const { data: { session } } = await supabase.auth.getSession()
       const issuedBy = session?.user?.email || 'System Admin'
 
-      // 6. Save file path (not public URL) — signed URLs are generated on demand
+      // 8. Save certificate record — pdf_url is file path if upload succeeded, empty otherwise
       const { data: newCert, error: insertError } = await supabase
         .from('certificates')
         .insert([
@@ -132,7 +146,7 @@ export function useInterns() {
             certificate_code: certificateCode,
             verification_token: verificationToken,
             issued_by: issuedBy,
-            pdf_url: filePath,
+            pdf_url: storedFilePath,
             status: 'valid'
           }
         ])

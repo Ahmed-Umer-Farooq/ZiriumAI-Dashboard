@@ -56,13 +56,71 @@ export function InternsList() {
   const [role, setRole] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [formErrors, setFormErrors] = useState({ fullName: '', email: '', role: '', startDate: '', endDate: '' })
+  const [touched, setTouched] = useState({ fullName: false, email: false, role: false, startDate: false, endDate: false })
+
+  const validateField = (name: string, value: string, extra?: Record<string, string>) => {
+    switch (name) {
+      case 'fullName':
+        if (!value.trim()) return 'Full name is required.'
+        if (value.trim().length < 2) return 'Name must be at least 2 characters.'
+        return ''
+      case 'email':
+        if (!value.trim()) return 'Email address is required.'
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Enter a valid email address.'
+        return ''
+      case 'role':
+        if (!value.trim()) return 'Role / program title is required.'
+        return ''
+      case 'startDate': {
+        if (!value) return 'Start date is required.'
+        const sd = new Date(value)
+        if (sd.getFullYear() < 2020) return 'Start year must be 2020 or later.'
+        if (sd.getFullYear() > new Date().getFullYear() + 2) return 'Start year seems too far in the future.'
+        return ''
+      }
+      case 'endDate': {
+        if (!value) return 'End date is required.'
+        const ed = new Date(value)
+        if (ed.getFullYear() < 2020) return 'End year must be 2020 or later.'
+        if (extra?.startDate) {
+          if (value <= extra.startDate) return 'End date must be after start date.'
+          const start = new Date(extra.startDate)
+          const monthsDiff = (ed.getFullYear() - start.getFullYear()) * 12 + (ed.getMonth() - start.getMonth())
+          if (monthsDiff < 1) return 'Internship must be at least 1 month long.'
+          if (monthsDiff > 24) return 'Internship duration cannot exceed 24 months.'
+        }
+        return ''
+      }
+      default:
+        return ''
+    }
+  }
+
+  const handleBlur = (name: string, value: string) => {
+    setTouched(t => ({ ...t, [name]: true }))
+    setFormErrors(e => ({ ...e, [name]: validateField(name, value, { startDate, endDate }) }))
+  }
+
+  const resetForm = () => {
+    setFullName(''); setEmail(''); setRole(''); setStartDate(''); setEndDate('')
+    setFormErrors({ fullName: '', email: '', role: '', startDate: '', endDate: '' })
+    setTouched({ fullName: false, email: false, role: false, startDate: false, endDate: false })
+  }
 
   const handleAddIntern = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!fullName || !email || !role || !startDate || !endDate) {
-      toast.error("Please fill in all required fields.")
-      return
+    // Mark all fields touched and validate
+    const errors = {
+      fullName: validateField('fullName', fullName),
+      email: validateField('email', email),
+      role: validateField('role', role),
+      startDate: validateField('startDate', startDate),
+      endDate: validateField('endDate', endDate, { startDate }),
     }
+    setFormErrors(errors)
+    setTouched({ fullName: true, email: true, role: true, startDate: true, endDate: true })
+    if (Object.values(errors).some(e => e)) return
 
     try {
       await addIntern({
@@ -75,12 +133,7 @@ export function InternsList() {
       })
       toast.success("Intern added successfully.")
       setIsModalOpen(false)
-      // Reset form
-      setFullName('')
-      setEmail('')
-      setRole('')
-      setStartDate('')
-      setEndDate('')
+      resetForm()
     } catch (err: any) {
       toast.error(`Failed to add intern: ${err.message || err}`)
     }
@@ -578,7 +631,7 @@ export function InternsList() {
           <div className="glass-panel w-full max-w-md rounded-2xl border border-border p-6 shadow-2xl relative bg-card text-xs animate-scale-up">
             {/* Modal Close Button */}
             <button
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => { setIsModalOpen(false); resetForm() }}
               className="absolute right-4 top-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
             >
               <X size={18} />
@@ -596,18 +649,21 @@ export function InternsList() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleAddIntern} className="space-y-4">
+            <form onSubmit={handleAddIntern} className="space-y-4" noValidate>
               {/* Full Name */}
               <div className="space-y-1">
                 <label className="font-extrabold text-muted-foreground">Full Name *</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. John Doe"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-border focus:border-primary focus:bg-background outline-none transition-all text-[var(--z-text-primary)]"
+                  onChange={(e) => { setFullName(e.target.value); if (touched.fullName) setFormErrors(err => ({ ...err, fullName: validateField('fullName', e.target.value) })) }}
+                  onBlur={(e) => handleBlur('fullName', e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl bg-muted/40 border focus:bg-background outline-none transition-all text-[var(--z-text-primary)] ${touched.fullName && formErrors.fullName ? 'border-rose-400 focus:border-rose-400' : 'border-border focus:border-primary'}`}
                 />
+                {touched.fullName && formErrors.fullName && (
+                  <p className="text-[10px] text-rose-500 font-medium flex items-center gap-1 mt-0.5">⚠ {formErrors.fullName}</p>
+                )}
               </div>
 
               {/* Email */}
@@ -615,12 +671,15 @@ export function InternsList() {
                 <label className="font-extrabold text-muted-foreground">Email Address *</label>
                 <input
                   type="email"
-                  required
                   placeholder="e.g. johndoe@zirium.ai"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-border focus:border-primary focus:bg-background outline-none transition-all text-[var(--z-text-primary)]"
+                  onChange={(e) => { setEmail(e.target.value); if (touched.email) setFormErrors(err => ({ ...err, email: validateField('email', e.target.value) })) }}
+                  onBlur={(e) => handleBlur('email', e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl bg-muted/40 border focus:bg-background outline-none transition-all text-[var(--z-text-primary)] ${touched.email && formErrors.email ? 'border-rose-400 focus:border-rose-400' : 'border-border focus:border-primary'}`}
                 />
+                {touched.email && formErrors.email && (
+                  <p className="text-[10px] text-rose-500 font-medium flex items-center gap-1 mt-0.5">⚠ {formErrors.email}</p>
+                )}
               </div>
 
               {/* Role Title */}
@@ -628,12 +687,15 @@ export function InternsList() {
                 <label className="font-extrabold text-muted-foreground">Role / Program Title *</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Frontend Development Intern"
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-border focus:border-primary focus:bg-background outline-none transition-all text-[var(--z-text-primary)]"
+                  onChange={(e) => { setRole(e.target.value); if (touched.role) setFormErrors(err => ({ ...err, role: validateField('role', e.target.value) })) }}
+                  onBlur={(e) => handleBlur('role', e.target.value)}
+                  className={`w-full px-3 py-2 rounded-xl bg-muted/40 border focus:bg-background outline-none transition-all text-[var(--z-text-primary)] ${touched.role && formErrors.role ? 'border-rose-400 focus:border-rose-400' : 'border-border focus:border-primary'}`}
                 />
+                {touched.role && formErrors.role && (
+                  <p className="text-[10px] text-rose-500 font-medium flex items-center gap-1 mt-0.5">⚠ {formErrors.role}</p>
+                )}
               </div>
 
               {/* Dates */}
@@ -642,21 +704,27 @@ export function InternsList() {
                   <label className="font-extrabold text-muted-foreground">Start Date *</label>
                   <input
                     type="date"
-                    required
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-border focus:border-primary focus:bg-background outline-none transition-all text-[var(--z-text-primary)]"
+                    onChange={(e) => { setStartDate(e.target.value); if (touched.startDate) setFormErrors(err => ({ ...err, startDate: validateField('startDate', e.target.value) })) }}
+                    onBlur={(e) => handleBlur('startDate', e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl bg-muted/40 border focus:bg-background outline-none transition-all text-[var(--z-text-primary)] ${touched.startDate && formErrors.startDate ? 'border-rose-400 focus:border-rose-400' : 'border-border focus:border-primary'}`}
                   />
+                  {touched.startDate && formErrors.startDate && (
+                    <p className="text-[10px] text-rose-500 font-medium mt-0.5">⚠ {formErrors.startDate}</p>
+                  )}
                 </div>
                 <div className="space-y-1">
                   <label className="font-extrabold text-muted-foreground">End Date *</label>
                   <input
                     type="date"
-                    required
                     value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-border focus:border-primary focus:bg-background outline-none transition-all text-[var(--z-text-primary)]"
+                    onChange={(e) => { setEndDate(e.target.value); if (touched.endDate) setFormErrors(err => ({ ...err, endDate: validateField('endDate', e.target.value, { startDate }) })) }}
+                    onBlur={(e) => handleBlur('endDate', e.target.value)}
+                    className={`w-full px-3 py-2 rounded-xl bg-muted/40 border focus:bg-background outline-none transition-all text-[var(--z-text-primary)] ${touched.endDate && formErrors.endDate ? 'border-rose-400 focus:border-rose-400' : 'border-border focus:border-primary'}`}
                   />
+                  {touched.endDate && formErrors.endDate && (
+                    <p className="text-[10px] text-rose-500 font-medium mt-0.5">⚠ {formErrors.endDate}</p>
+                  )}
                 </div>
               </div>
 
@@ -664,7 +732,7 @@ export function InternsList() {
               <div className="flex justify-end gap-2 pt-4 border-t border-border/40 mt-6">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); resetForm() }}
                   className="px-4 py-2 border border-border hover:bg-muted text-muted-foreground rounded-xl text-xs font-bold transition-all cursor-pointer"
                 >
                   Cancel

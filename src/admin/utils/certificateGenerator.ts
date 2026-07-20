@@ -34,8 +34,8 @@ const convertSvgToJpegBase64 = (svgText: string): Promise<string> => {
     img.onload = () => {
       const canvas = document.createElement("canvas");
       // A4 aspect ratio is 297/210 = 1.414. Set high resolution for crisp PDF output.
-      canvas.width = 2970;
-      canvas.height = 2100;
+      canvas.width = 1485;
+      canvas.height = 1050;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.imageSmoothingEnabled = true;
@@ -46,7 +46,7 @@ const convertSvgToJpegBase64 = (svgText: string): Promise<string> => {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const jpegBase64 = canvas.toDataURL("image/jpeg", 0.80);
+        const jpegBase64 = canvas.toDataURL("image/jpeg", 0.92);
         URL.revokeObjectURL(url);
         resolve(jpegBase64);
       } else {

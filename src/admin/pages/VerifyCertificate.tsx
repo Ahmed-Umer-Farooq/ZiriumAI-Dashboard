@@ -223,9 +223,9 @@ export function VerifyCertificate() {
                 </div>
 
                 <div className="pt-6 w-full">
-                  <div className="text-[9px] text-slate-400 font-mono uppercase tracking-widest mb-1">Verification Token</div>
-                  <div className="text-[10px] text-slate-500 font-mono bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 break-all leading-relaxed">
-                    {token}
+                  <div className="text-[9px] text-slate-400 font-mono uppercase tracking-widest mb-1">Certificate ID</div>
+                  <div className="text-sm font-black text-cyan-600 font-mono tracking-widest bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-center">
+                    {certInfo?.certificate_code}
                   </div>
                 </div>
               </div>

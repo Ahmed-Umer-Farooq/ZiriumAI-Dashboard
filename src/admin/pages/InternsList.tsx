@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useInterns } from '../hooks/useInterns'
+import { supabase } from '../../lib/supabase'
+import { generateCertificatePdf } from '../utils/certificateGenerator'
 import {
   Award,
   Plus,
@@ -43,6 +45,7 @@ export function InternsList() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
   const [revokingId, setRevokingId] = useState<string | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [confirmModal, setConfirmModal] = useState<ConfirmModal>({
     open: false, title: '', message: '', confirmLabel: 'Confirm', onConfirm: () => {}
   })
@@ -141,6 +144,55 @@ export function InternsList() {
         }
       }
     })
+  }
+
+  const handleDownloadCertificate = async (intern: any, certificate: any) => {
+    setDownloadingId(certificate.id)
+    try {
+      let blob: Blob | null = null
+      let filename = `${intern.full_name.replace(/\s+/g, '-')}-${certificate.certificate_code}.pdf`
+
+      if (certificate.pdf_url && !certificate.pdf_url.startsWith('http')) {
+        // Private bucket file path — get a short-lived signed URL
+        const { data } = await supabase.storage
+          .from('certificates')
+          .createSignedUrl(certificate.pdf_url, 300)
+        if (data?.signedUrl) {
+          const res = await fetch(data.signedUrl)
+          blob = await res.blob()
+        }
+      } else if (certificate.pdf_url?.startsWith('http')) {
+        // Legacy public URL
+        const res = await fetch(certificate.pdf_url)
+        blob = await res.blob()
+      }
+
+      // If no stored PDF, regenerate on-the-fly from certificate data
+      if (!blob) {
+        blob = await generateCertificatePdf({
+          internName: intern.full_name,
+          role: intern.role,
+          startDate: intern.start_date,
+          endDate: intern.end_date,
+          certificateCode: certificate.certificate_code,
+          verificationToken: certificate.verification_token,
+        })
+      }
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast.success('Certificate downloaded.')
+    } catch (err: any) {
+      toast.error(`Download failed: ${err.message || err}`)
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   const filteredInterns = interns.filter(intern => {
@@ -391,17 +443,17 @@ export function InternsList() {
                               </a>
 
                               {/* Download PDF */}
-                              {certificate.pdf_url && (
-                                <a
-                                  href={certificate.pdf_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="p-1 bg-muted hover:bg-primary/20 text-muted-foreground hover:text-primary rounded-lg transition-colors cursor-pointer"
-                                  title="Download PDF"
-                                >
-                                  <Download size={14} />
-                                </a>
-                              )}
+                              <button
+                                onClick={() => handleDownloadCertificate(intern, certificate)}
+                                disabled={downloadingId === certificate.id}
+                                className="p-1 bg-muted hover:bg-primary/20 text-muted-foreground hover:text-primary rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                                title="Download Certificate PDF"
+                              >
+                                {downloadingId === certificate.id
+                                  ? <RefreshCw size={14} className="animate-spin" />
+                                  : <Download size={14} />
+                                }
+                              </button>
 
                               {/* Revoke Certificate */}
                               {certificate.status === 'valid' && (

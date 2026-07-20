@@ -1,0 +1,184 @@
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../../lib/supabase'
+import type { Intern } from '../types/certificate.types'
+import { generateCertificatePdf } from '../utils/certificateGenerator'
+
+export function useInterns() {
+  const [interns, setInterns] = useState<Intern[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchInterns = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('interns')
+        .select('*, certificates(*)')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setInterns(data || [])
+    } catch (error) {
+      console.error('Error fetching interns:', error)
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [])
+
+  const addIntern = useCallback(async (internData: Omit<Intern, 'id' | 'created_at' | 'certificates'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('interns')
+        .insert([internData])
+        .select()
+
+      if (error) throw error
+      if (data && data.length > 0) {
+        setInterns(prev => [data[0], ...prev])
+      }
+      return data?.[0]
+    } catch (error) {
+      console.error('Error adding intern:', error)
+      throw error
+    }
+  }, [])
+
+  const updateInternStatus = useCallback(async (id: string, status: Intern['status']) => {
+    try {
+      const { error } = await supabase
+        .from('interns')
+        .update({ status })
+        .eq('id', id)
+
+      if (error) throw error
+      setInterns(prev =>
+        prev.map(intern => (intern.id === id ? { ...intern, status } : intern))
+      )
+    } catch (error) {
+      console.error('Error updating intern status:', error)
+      throw error
+    }
+  }, [])
+
+  const generateCertificate = useCallback(async (internId: string) => {
+    try {
+      const intern = interns.find(i => i.id === internId)
+      if (!intern) throw new Error('Intern not found')
+      if (intern.status !== 'completed') {
+        throw new Error('Certificates can only be generated for completed interns')
+      }
+
+      // 1. Generate unique verification token
+      const verificationToken = crypto.randomUUID()
+
+      // 2. Generate sequential certificate code (e.g. ZIR-2026-0001)
+      const currentYear = new Date().getFullYear()
+      const { data: lastCert, error: certFetchError } = await supabase
+        .from('certificates')
+        .select('certificate_code')
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (certFetchError) throw certFetchError
+
+      let nextNumber = 1
+      if (lastCert && lastCert.length > 0) {
+        const lastCode = lastCert[0].certificate_code
+        // Expected format: ZIR-YYYY-XXXX where XXXX is sequential digits
+        const codeParts = lastCode.split('-')
+        if (codeParts.length === 3 && codeParts[1] === String(currentYear)) {
+          const lastNum = parseInt(codeParts[2], 10)
+          if (!isNaN(lastNum)) {
+            nextNumber = lastNum + 1
+          }
+        }
+      }
+      const certificateCode = `ZIR-${currentYear}-${String(nextNumber).padStart(4, '0')}`
+
+      // 3. Generate PDF client-side
+      const pdfBlob = await generateCertificatePdf({
+        internName: intern.full_name,
+        role: intern.role,
+        startDate: intern.start_date,
+        endDate: intern.end_date,
+        certificateCode,
+        verificationToken
+      })
+
+      // 4. Upload PDF to Supabase Storage in 'certificates' bucket
+      const safeName = intern.full_name.trim().replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')
+      const filePath = `${safeName}-${certificateCode}.pdf`
+      const { error: uploadError } = await supabase.storage
+        .from('certificates')
+        .upload(filePath, pdfBlob, {
+          contentType: 'application/pdf',
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        throw new Error(`Failed to upload certificate PDF: ${uploadError.message}`)
+      }
+
+      // 5. Get issuing admin credentials
+      const { data: { session } } = await supabase.auth.getSession()
+      const issuedBy = session?.user?.email || 'System Admin'
+
+      // 6. Save file path (not public URL) — signed URLs are generated on demand
+      const { data: newCert, error: insertError } = await supabase
+        .from('certificates')
+        .insert([
+          {
+            intern_id: internId,
+            certificate_code: certificateCode,
+            verification_token: verificationToken,
+            issued_by: issuedBy,
+            pdf_url: filePath,
+            status: 'valid'
+          }
+        ])
+        .select()
+
+      if (insertError) throw insertError
+
+      // Refresh list of interns to include the generated certificate
+      await fetchInterns(true)
+
+      return newCert?.[0]
+    } catch (error) {
+      console.error('Error generating certificate:', error)
+      throw error
+    }
+  }, [interns, fetchInterns])
+
+  const revokeCertificate = useCallback(async (certificateId: string) => {
+    try {
+      const { error } = await supabase
+        .from('certificates')
+        .update({ status: 'revoked' })
+        .eq('id', certificateId)
+
+      if (error) throw error
+
+      // Refresh list
+      await fetchInterns(true)
+    } catch (error) {
+      console.error('Error revoking certificate:', error)
+      throw error
+    }
+  }, [fetchInterns])
+
+  useEffect(() => {
+    fetchInterns()
+  }, [fetchInterns])
+
+  return {
+    interns,
+    loading,
+    fetchInterns,
+    addIntern,
+    updateInternStatus,
+    generateCertificate,
+    revokeCertificate
+  }
+}
+

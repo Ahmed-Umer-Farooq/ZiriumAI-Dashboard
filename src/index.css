@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --font-plus-jakarta-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-dm-sans: 'DM Sans', sans-serif;
+  --font-inter: 'Inter', sans-serif;
+  --font-jetbrains-mono: 'JetBrains Mono', monospace;
+
+  --font-size: 16px;
+
+  /* Zirium AI Brand Colors - LIGHT THEME */
+  --z-bg-primary: #F8FAFC;
+  --z-bg-secondary: #FFFFFF;
+  --z-bg-elevated: #FFFFFF;
+  --z-accent-blue: #41C6F1;
+  --z-accent-blue-dim: #0EA5E9;
+  --z-accent-glow: rgba(65, 198, 241, 0.08);
+  --z-text-primary: #0F172A;
+  --z-text-secondary: #475569;
+  --z-text-muted: #94A3B8;
+  --z-border: rgba(65, 198, 241, 0.15);
+
+  /* Typography Scale */
+  --text-hero: clamp(3rem, 6vw, 5rem);
+  --text-h1: clamp(2rem, 4vw, 3.5rem);
+  --text-h2: clamp(1.5rem, 3vw, 2.5rem);
+  --text-h3: clamp(1.1rem, 2vw, 1.5rem);
+  --text-base: 1rem;
+  --text-small: 0.875rem;
+  --text-label: 0.75rem;
+
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F172A;
+  --primary: #41C6F1;
+  --primary-foreground: #000000;
+  --secondary: #FFFFFF;
+  --secondary-foreground: #0F172A;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #41C6F1;
+  --accent-foreground: #000000;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(65, 198, 241, 0.15);
+  --input: rgba(65, 198, 241, 0.15);
+  --input-background: #FFFFFF;
+  --ring: rgba(65, 198, 241, 0.4);
+  --radius: 1rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/45;
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+    font-family: var(--font-inter), 'Inter', sans-serif;
+    font-weight: 500;
+    line-height: 1.6;
+  }
+
+  html {
+    font-size: var(--font-size);
+    scroll-behavior: smooth;
+    height: 100%;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-plus-jakarta-sans), 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 800;
+    color: var(--z-text-primary);
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(65, 198, 241, 0.2);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(65, 198, 241, 0.4);
+  }
+}
+
+/* Glassmorphism Styles */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(65, 198, 241, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+}
+
+.sidebar-glow {
+  position: relative;
+}
+.sidebar-glow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 0% 0%, rgba(65, 198, 241, 0.05), transparent 60%);
+  pointer-events: none;
+}

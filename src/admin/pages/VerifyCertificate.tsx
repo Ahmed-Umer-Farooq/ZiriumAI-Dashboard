@@ -338,10 +338,10 @@ export function VerifyCertificate() {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all duration-200"
-                    style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", color: "#fff", boxShadow: "0 4px 16px rgba(15,23,42,0.18)", letterSpacing: "0.06em" }}
+                    style={{ background: "linear-gradient(135deg, #67dcf9 0%, #41C6F1 48%, #1fb3de 100%)", color: "#fff", boxShadow: "0 4px 18px rgba(65,198,241,0.35)", letterSpacing: "0.06em" }}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#41C6F1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                    Visit <span style={{ color: "#41C6F1", marginLeft: 4 }}>ziriumai.com</span>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Visit ziriumai.com
                   </a>
                 </div>
               </div>

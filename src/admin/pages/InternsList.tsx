@@ -13,9 +13,18 @@ import {
   Download,
   X,
   User,
-  Check
+  Check,
+  Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface ConfirmModal {
+  open: boolean
+  title: string
+  message: string
+  confirmLabel: string
+  onConfirm: () => void
+}
 
 export function InternsList() {
   const {
@@ -25,7 +34,8 @@ export function InternsList() {
     addIntern,
     updateInternStatus,
     generateCertificate,
-    revokeCertificate
+    revokeCertificate,
+    deleteIntern
   } = useInterns()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -33,6 +43,9 @@ export function InternsList() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [generatingId, setGeneratingId] = useState<string | null>(null)
   const [revokingId, setRevokingId] = useState<string | null>(null)
+  const [confirmModal, setConfirmModal] = useState<ConfirmModal>({
+    open: false, title: '', message: '', confirmLabel: 'Confirm', onConfirm: () => {}
+  })
 
   // Form State
   const [fullName, setFullName] = useState('')
@@ -91,19 +104,43 @@ export function InternsList() {
     }
   }
 
-  const handleRevokeCertificate = async (certId: string) => {
-    if (!window.confirm("Are you sure you want to revoke this certificate? This action is irreversible and the verification link will report the certificate as revoked.")) {
-      return
-    }
-    setRevokingId(certId)
-    try {
-      await revokeCertificate(certId)
-      toast.success("Certificate revoked successfully.")
-    } catch (err: any) {
-      toast.error(`Revoke failed: ${err.message || err}`)
-    } finally {
-      setRevokingId(null)
-    }
+  const handleRevokeCertificate = (certId: string) => {
+    setConfirmModal({
+      open: true,
+      title: 'Revoke Certificate',
+      message: 'This is irreversible. The QR code will show "REVOKED" to anyone who scans it. Are you sure?',
+      confirmLabel: 'Yes, Revoke',
+      onConfirm: async () => {
+        setConfirmModal(m => ({ ...m, open: false }))
+        setRevokingId(certId)
+        try {
+          await revokeCertificate(certId)
+          toast.success("Certificate revoked successfully.")
+        } catch (err: any) {
+          toast.error(`Revoke failed: ${err.message || err}`)
+        } finally {
+          setRevokingId(null)
+        }
+      }
+    })
+  }
+
+  const handleDeleteIntern = (id: string, name: string) => {
+    setConfirmModal({
+      open: true,
+      title: 'Delete Intern',
+      message: `Permanently delete "${name}" and all their records? This cannot be undone.`,
+      confirmLabel: 'Yes, Delete',
+      onConfirm: async () => {
+        setConfirmModal(m => ({ ...m, open: false }))
+        try {
+          await deleteIntern(id)
+          toast.success("Intern deleted successfully.")
+        } catch (err: any) {
+          toast.error(`Delete failed: ${err.message || err}`)
+        }
+      }
+    })
   }
 
   const filteredInterns = interns.filter(intern => {
@@ -383,6 +420,15 @@ export function InternsList() {
                               )}
                             </div>
                           )}
+
+                          {/* Delete Intern */}
+                          <button
+                            onClick={() => handleDeleteIntern(intern.id, intern.full_name)}
+                            className="p-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Intern"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -444,6 +490,35 @@ export function InternsList() {
         </>
       )}
     </div>
+
+      {/* Confirm Action Modal */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                <AlertTriangle size={18} />
+              </div>
+              <h3 className="text-sm font-extrabold text-[var(--z-text-primary)]">{confirmModal.title}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">{confirmModal.message}</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmModal(m => ({ ...m, open: false }))}
+                className="px-4 py-2 border border-border hover:bg-muted text-muted-foreground rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md shadow-rose-500/25"
+              >
+                {confirmModal.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Intern Overlay Modal */}
       {isModalOpen && (

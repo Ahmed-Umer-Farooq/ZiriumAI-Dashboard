@@ -150,6 +150,20 @@ export function useInterns() {
     }
   }, [interns, fetchInterns])
 
+  const deleteIntern = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('interns')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+      await fetchInterns(true)
+    } catch (error) {
+      console.error('Error deleting intern:', error)
+      throw error
+    }
+  }, [fetchInterns])
+
   const revokeCertificate = useCallback(async (certificateId: string) => {
     try {
       const { error } = await supabase
@@ -178,7 +192,8 @@ export function useInterns() {
     addIntern,
     updateInternStatus,
     generateCertificate,
-    revokeCertificate
+    revokeCertificate,
+    deleteIntern
   }
 }
 
